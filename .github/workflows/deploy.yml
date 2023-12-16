@@ -1,0 +1,59 @@
+name: Deploy to production
+
+on:
+  push:
+    branches: [ master]
+
+jobs:
+
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Set up Date
+      id: date
+      run: |
+        echo "::set-output name=date::$(date +'%m/%d/%Y:%H:%M')"
+
+    - name: Set up API versioning
+      id: ghd
+      uses: proudust/gh-describe@v1.5.4
+
+    - name: Setup Environment Variables
+      run: |
+        echo "SERVER_PORT=${{ secrets.SERVER_PORT }}" >> .env
+        echo "DB_DSN=${{ secrets.DB_DSN }}" >> .env
+        echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env
+        echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
+        echo "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" >> .env
+        echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> .env
+        echo "SMTP_SENDER=${{ secrets.SMTP_SENDER }}" >> .env
+
+    - name: Build and tag Docker image
+      run: |
+        docker build --build-arg VERSION=${{ steps.ghd.outputs.describe }} --build-arg CURRENT_TIME=${{ steps.date.outputs.date }} -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/blogpost:${{ steps.ghd.outputs.describe }} -f app.dockerfile .
+
+    - name: Configure Google Cloud credentials
+      uses: google-github-actions/setup-gcloud@v0.2.1
+      with:
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        export_default_credentials: true
+
+    - name: Login to Google GCR
+      run: |
+        echo ${{ secrets.GCP_SA_KEY }} | base64 --decode | docker login -u _json_key --password-stdin https://gcr.io
+
+    - name: Push Docker image to Google GCR
+      run: |
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/blogpost:${{ steps.ghd.outputs.describe }}
+
+    - name: Deploy to Google Cloud Run
+      run: |
+        gcloud run deploy blogpost --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/blogpost:${{ steps.ghd.outputs.describe }} --region asia-southeast1 --platform managed --allow-unauthenticated --set-env-vars DB_DSN=${{ secrets.DB_DSN }}

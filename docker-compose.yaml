@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+ postgres:
+  build:
+   context: .
+   dockerfile: db.dockerfile
+  ports:
+    - "542:5432"
+ api:
+  build:
+    context: .
+    dockerfile: app.dockerfile
+    args:
+    - VERSION
+    - CURRENT_TIME
+  ports:
+   - "3001:3001"
+  environment:
+   - DB_DSN
+  env_file:
+   - app.env
+  depends_on:
+   - postgres
+  entrypoint: [ "/app/wait-for.sh", "postgres:5432", "--", "/app/start.sh" ]
+  command: [ "/app/main", "--env", "production", "--cors-trusted-origins", "http://localhost:3000" ]
