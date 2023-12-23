@@ -1,4 +1,6 @@
 # My Blog Posts Platform (Back-End)
+![image](https://github.com/mukhriddin-dev/Go-blog/assets/66181316/ea53bb09-2e84-4508-9443-207632139f50)
+
 
 In my Golang Back-End, I executed advanced SQL queries, ensured data normalization, db migrations, and established proper indexes. Developed a suite of middlewares for, secureHeaders and client-based rate limiting, to manage request traffic. I handled race conditions using mutual exclusion locks in app and a versioning system in DB. Established a graceful shutdown process for the server, systematically formatted JSON responses, ensured proper error handling, and implemented automated API versioning using git.
 
